@@ -4,6 +4,7 @@ import dotenv
 import uuid
 
 
+
 # check if it's linux so it works on Streamlit Cloud
 if os.name == 'posix':
     __import__('pysqlite3')
@@ -21,6 +22,8 @@ from rag_methods import (
     stream_llm_rag_response,
 )
 os.environ["USER_AGENT"] = "MyFastAPIApp/1.0"
+OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+ANTHROPIC_API_KEY = st.secrets["ANTHROPIC_API_KEY"]
 dotenv.load_dotenv()
 
 if "AZ_OPENAI_API_KEY" not in os.environ:
@@ -62,7 +65,7 @@ if "messages" not in st.session_state:
 # --- Side Bar LLM API Tokens ---
 with st.sidebar:
     if "AZ_OPENAI_API_KEY" not in os.environ:
-        default_openai_api_key = os.getenv("OPENAI_API_KEY") if os.getenv("OPENAI_API_KEY") is not None else ""  # only for development environment, otherwise it should return None
+        default_openai_api_key = OPENAI_API_KEY if OPENAI_API_KEY is not None else ""  # only for development environment, otherwise it should return None
         with st.popover("🔐 OpenAI"):
             openai_api_key = st.text_input(
                 "Introduce your OpenAI API Key (https://platform.openai.com/)", 
@@ -71,7 +74,7 @@ with st.sidebar:
                 key="openai_api_key",
             )
 
-        default_anthropic_api_key = os.getenv("ANTHROPIC_API_KEY") if os.getenv("ANTHROPIC_API_KEY") is not None else ""
+        default_anthropic_api_key = ANTHROPIC_API_KEY if ANTHROPIC_API_KEY is not None else ""
         with st.popover("🔐 Anthropic"):
             anthropic_api_key = st.text_input(
                 "Introduce your Anthropic API Key (https://console.anthropic.com/)", 
@@ -153,14 +156,14 @@ else:
     model_provider = st.session_state.model.split("/")[0]
     if model_provider == "openai":
         llm_stream = ChatOpenAI(
-            api_key=openai_api_key,
+            api_key=OPENAI_API_KEY,
             model_name=st.session_state.model.split("/")[-1],
             temperature=0.3,
             streaming=True,
         )
     elif model_provider == "anthropic":
         llm_stream = ChatAnthropic(
-            api_key=anthropic_api_key,
+            api_key=ANTHROPIC_API_KEY,
             model=st.session_state.model.split("/")[-1],
             temperature=0.3,
             streaming=True,
