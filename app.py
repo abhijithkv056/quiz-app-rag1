@@ -1,9 +1,9 @@
-import streamlit as st
-import os
-import dotenv
-import uuid
 import os
 os.system("pip install -r requirements.txt")
+import streamlit as st
+import dotenv
+import uuid
+
 
 # check if it's linux so it works on Streamlit Cloud
 if os.name == 'posix':
