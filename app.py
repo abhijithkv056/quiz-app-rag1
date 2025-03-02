@@ -46,7 +46,7 @@ st.set_page_config(
 
 
 # --- Header ---
-st.html("""<h2 style="text-align: center;">RAG project- V2""")
+st.html("""<h2 style="text-align: center;">Quiz Master - V2""")
 
 
 # --- Initial Setup ---
