@@ -159,7 +159,7 @@ def get_conversational_rag_chain(llm):
 
     prompt = ChatPromptTemplate.from_messages([
         ("system",
-        """You are a quiz master that ask questions to user. you will ask user a question and give 4 options. only one opion will be correct.
+        """You are a quiz master that ask questions to user. you will ask user a question and give 4 options..make sure all 4 options are shown in 4 lines. only one opion will be correct.
         You will have some context to help with your asking the questions and deciding the correct option, but now always would be completely related or helpful.
         Only use the context provided to provide response. do not hallucinate. if you dont have the context, just say so.
         Also at the end. ask the user if he wants to get the next question. if user says "yes", then given next question\n
