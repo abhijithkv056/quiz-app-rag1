@@ -128,8 +128,8 @@ def initialize_vector_db(docs):
 
 def _split_and_load_docs(docs):
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=5000,
-        chunk_overlap=1000,
+        chunk_size=300,
+        chunk_overlap=100,
     )
 
     document_chunks = text_splitter.split_documents(docs)
@@ -168,7 +168,7 @@ def get_conversational_rag_chain(llm):
         ("user", "{input}"),
     ])
     stuff_documents_chain = create_stuff_documents_chain(llm, prompt)
-
+    
     return create_retrieval_chain(retriever_chain, stuff_documents_chain)
 
 
