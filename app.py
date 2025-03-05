@@ -2,6 +2,8 @@ import streamlit as st
 import os
 import dotenv
 import uuid
+
+
 #import os
 #os.system("pip install -r requirements.txt")
 
@@ -21,8 +23,9 @@ from rag_methods import (
     stream_llm_response,
     stream_llm_rag_response,
 )
-os.environ["USER_AGENT"] = "MyFastAPIApp/1.0"
 dotenv.load_dotenv()
+os.environ["USER_AGENT"] = "MyFastAPIApp/1.0"
+
 
 if "AZ_OPENAI_API_KEY" not in os.environ:
     MODELS = [
@@ -58,6 +61,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "assistant", "content": " Upload a documents and type 'Quiz me' to start"}
 ]
+
 
 
 # --- Side Bar LLM API Tokens ---
@@ -194,8 +198,10 @@ else:
 
             if not st.session_state.use_rag:
                 st.write_stream(stream_llm_response(llm_stream, messages))
+                
             else:
                 st.write_stream(stream_llm_rag_response(llm_stream, messages))
+                
 
 
 
