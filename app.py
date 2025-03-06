@@ -38,7 +38,7 @@ else:
 
 
 st.set_page_config(
-    page_title="Quiz master RAG LLM app", 
+    page_title="RAG LLM app", 
     page_icon="📚", 
     layout="centered", 
     initial_sidebar_state="expanded"
@@ -46,7 +46,7 @@ st.set_page_config(
 
 
 # --- Header ---
-st.html("""<h2 style="text-align: center;">Quiz Master - V2""")
+st.html("""<h2 style="text-align: center;">RAG app - V2""")
 
 
 # --- Initial Setup ---
