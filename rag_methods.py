@@ -150,17 +150,19 @@ def _split_and_load_docs(docs):
 
 
 
-def get_conversational_rag_chain(llm):
+def get_conversational_rag_chain(llm,messages):
 
     retriever = st.session_state.vector_db.as_retriever()
     user_prompt = ChatPromptTemplate.from_messages([
         MessagesPlaceholder(variable_name="messages"),
         ("user", "{input}"),
-        ("user", "Given the option/input chosen by the user, mention if the option is correct or not. Inboth cases, give an explaination focussing on most recent question. if user asked to quiz him, then provide the question as per prompt template"),
+        ("user", "Given the option/input chosen by the user, mention if the option is correct or not. Inboth cases, give an explaination focussing on most recent question. if user asked to quiz him, then provide the question as per the context"),
     ])
     retriever_chain = create_history_aware_retriever(llm, retriever, user_prompt)
 
-    retrieval_output = retriever.get_relevant_documents("Given the option/input chosen by the user, mention if the option is correct or not. Inboth cases, give an explaination focussing on most recent question. if user asked to quiz him, then provide the question as per prompt template")
+
+        ################# logging purpose only ##################
+    retrieval_output = retriever.get_relevant_documents(f"Given the option/input chosen by the user, mention if the option is correct or not. Inboth cases, give an explaination focussing on most recent question. if user asked to quiz him, then provide the question as per context{messages[:-1]} ")
     
     if retrieval_output:
         logging.info(f"++Logs++Retrieved {len(retrieval_output)} documents.")
@@ -171,6 +173,7 @@ def get_conversational_rag_chain(llm):
             logging.info(f"Content :{doc.page_content}")
             print(f"📄 Doc {i+1} length: {content_length} characters")  # Print for immediate visibility
 
+    #####################################################################    
     system_prompt = ChatPromptTemplate.from_messages([
         ("system",
         """You are a quiz master that ask questions to user. you will ask user a question and give 4 options. only one opion will be correct.make sure all 4 options are shown in 4 lines
@@ -189,7 +192,7 @@ def get_conversational_rag_chain(llm):
 
 
 def stream_llm_rag_response(llm_stream, messages):
-    conversation_rag_chain = get_conversational_rag_chain(llm_stream)
+    conversation_rag_chain = get_conversational_rag_chain(llm_stream,messages)
     response_message = "*(RAG Response)*\n"
     for chunk in conversation_rag_chain.pick("answer").stream({"messages": messages[:-1], "input": messages[-1].content}):
         response_message += chunk
