@@ -162,7 +162,8 @@ def get_conversational_rag_chain(llm,messages):
 
 
         ################# logging purpose only ##################
-    retrieval_output = retriever.get_relevant_documents(f"Given the option/input chosen by the user, mention if the option is correct or not. Inboth cases, give an explaination focussing on most recent question. if user asked to quiz him, then provide the question as per context{messages[:-1]} ")
+    logging.info(f"☑ ✓ ✅Logs retrieved for message:{messages[-1]}")
+    retrieval_output = retriever.get_relevant_documents(f"{messages[-1]} Given the option/input chosen by the user, mention if the option is correct or not. Inboth cases, give an explaination focussing on most recent question. if user asked to quiz him, then provide the question as per context")
     
     if retrieval_output:
         logging.info(f"++Logs++Retrieved {len(retrieval_output)} documents.")
@@ -171,7 +172,7 @@ def get_conversational_rag_chain(llm,messages):
             content_length = len(doc.page_content)
             logging.info(f"📄 Doc {i+1} length: {content_length} characters")
             logging.info(f"Content :{doc.page_content}")
-            print(f"📄 Doc {i+1} length: {content_length} characters")  # Print for immediate visibility
+ 
 
     #####################################################################    
     system_prompt = ChatPromptTemplate.from_messages([
@@ -179,7 +180,7 @@ def get_conversational_rag_chain(llm,messages):
         """You are a quiz master that ask questions to user. you will ask user a question and give 4 options. only one opion will be correct.make sure all 4 options are shown in 4 lines
         You will have some context to help with your asking the questions and deciding the correct option, but now always would be completely related or helpful.
         Only use the context provided to provide response. do not hallucinate. if you dont have the context, just say so.
-        Incase if the user has provided a right or wrong anser, ask him if he would another question\n
+        Incase if the user has provided a right or wrong anser, ask him if on which topic he would like to get next question on\n
         {context}"""),
         MessagesPlaceholder(variable_name="messages"),
         ("user", "{input}"),
