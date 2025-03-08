@@ -39,7 +39,7 @@ else:
 
 
 st.set_page_config(
-    page_title="Quiz master RAG LLM app", 
+    page_title="Local-dev 2 RAG LLM app", 
     page_icon="📚", 
     layout="centered", 
     initial_sidebar_state="expanded"
