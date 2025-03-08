@@ -59,7 +59,7 @@ if "rag_sources" not in st.session_state:
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": " Upload a documents and type 'Quiz me' to start"}
+        {"role": "assistant", "content": " Upload a documents and type 'Quiz me about <Topic details>' to start"}
 ]
 
 
