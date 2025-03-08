@@ -152,7 +152,7 @@ def _split_and_load_docs(docs):
 
 def get_conversational_rag_chain(llm,messages):
 
-    retriever = st.session_state.vector_db.as_retriever()
+    retriever = st.session_state.vector_db.as_retriever(search_kwargs={"k": 2})
     user_prompt = ChatPromptTemplate.from_messages([
         MessagesPlaceholder(variable_name="messages"),
         ("user", "{input}"),
