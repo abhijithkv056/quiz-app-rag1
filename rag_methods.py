@@ -156,7 +156,10 @@ def get_conversational_rag_chain(llm,messages):
     user_prompt = ChatPromptTemplate.from_messages([
         MessagesPlaceholder(variable_name="messages"),
         ("user", "{input}"),
-        ("user", "Given the option/input chosen by the user, mention if the option is correct or not. Inboth cases, give an explaination focussing on most recent question. if user asked to quiz him, then provide the question as per the context"),
+        ("user", """ The input given above maybe of 2 scenarios:
+         1. Incase if user has asked to quiz him, then provide the question as per the topic / context given
+         2. Incase user has given an answer to a question in the form of an option for an MCQ question,  mention if the option is correct or not for the recent question. 
+         """),
     ])
     retriever_chain = create_history_aware_retriever(llm, retriever, user_prompt)
 
