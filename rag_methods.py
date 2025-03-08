@@ -141,7 +141,7 @@ def _split_and_load_docs(docs):
     document_chunks = text_splitter.split_documents(docs)
 
     if "vector_db" not in st.session_state:
-        st.session_state.vector_db = initialize_vector_db(docs)
+        st.session_state.vector_db = initialize_vector_db(document_chunks)
     else:
         st.session_state.vector_db.add_documents(document_chunks)
 
