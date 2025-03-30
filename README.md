@@ -6,3 +6,7 @@ Note few points:
 2. In local branch --> open API key is fetched from env variable
 
 URL: https://quiz-app-rag-v2-abhijith-kv.streamlit.app/ 
+
+
+Internal note:
+To run the code locally -- use the llms_v4 venv (all dependencies already set up there) i have defined and use the branch local (not main)
