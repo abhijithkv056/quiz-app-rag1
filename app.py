@@ -2,7 +2,8 @@ import os
 import streamlit as st
 import dotenv
 import uuid
-
+import os
+os.system("pip install -r requirements.txt")
 
 # check if it's linux so it works on Streamlit Cloud
 if os.name == 'posix':
@@ -20,8 +21,9 @@ from rag_methods import (
     stream_llm_response,
     stream_llm_rag_response,
 )
-os.environ["USER_AGENT"] = "MyFastAPIApp/1.0"
 dotenv.load_dotenv()
+os.environ["USER_AGENT"] = "MyFastAPIApp/1.0"
+
 
 if "AZ_OPENAI_API_KEY" not in os.environ:
     MODELS = [
@@ -35,7 +37,7 @@ else:
 
 
 st.set_page_config(
-    page_title="Quiz master RAG LLM app", 
+    page_title="Local-dev 2 RAG LLM app", 
     page_icon="📚", 
     layout="centered", 
     initial_sidebar_state="expanded"
@@ -55,8 +57,9 @@ if "rag_sources" not in st.session_state:
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": " Upload a documents and type 'Quiz me' to start"}
+        {"role": "assistant", "content": " Upload a documents and type 'Quiz me about <Topic details>' to start"}
 ]
+
 
 
 # --- Side Bar LLM API Tokens ---
@@ -193,8 +196,10 @@ else:
 
             if not st.session_state.use_rag:
                 st.write_stream(stream_llm_response(llm_stream, messages))
+                
             else:
                 st.write_stream(stream_llm_rag_response(llm_stream, messages))
+                
 
 
 
