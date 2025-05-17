@@ -18,6 +18,7 @@ from rag_methods import (
 )
 dotenv.load_dotenv()
 os.environ["USER_AGENT"] = "MyFastAPIApp/1.0"
+openai_api_key = os.environ.get("OPENAI_API_KEY")
 
 
 if "AZ_OPENAI_API_KEY" not in os.environ:
