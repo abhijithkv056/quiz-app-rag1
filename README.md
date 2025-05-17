@@ -9,4 +9,4 @@ URL: https://quiz-app-rag-v2-abhijith-kv.streamlit.app/
 
 
 Internal note:
-To run the code locally -- use the llms_v4 venv (all dependencies already set up there) 
+To run the code locally -- use the llms_v4 venv (all dependencies already set up there) -- in my windows machine
