@@ -42,15 +42,15 @@ jobs:
     - name: Login to DockerHub
       uses: docker/login-action@v2
       with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        username: #${{ secrets.DOCKERHUB_USERNAME }}
+        password: #${{ secrets.DOCKERHUB_TOKEN }}
         
     - name: Build and push
       uses: docker/build-push-action@v4
       with:
         context: .
         push: true
-        tags: ${{ secrets.DOCKERHUB_USERNAME }}/quiz-app-rag:latest
+        tags: #${{ secrets.DOCKERHUB_USERNAME }}/quiz-app-rag:latest
         
   deploy:
     needs: build-and-push
