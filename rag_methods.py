@@ -109,9 +109,11 @@ def generate_answer(user_query, context_documents, chat_history):
     context_text = "\n\n".join([doc.page_content for doc in context_documents])
     conversation_prompt = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
     response_chain = conversation_prompt | LANGUAGE_MODEL
+
+    print('context:',context_documents)
     return response_chain.invoke({
         "user_query": user_query, 
-        "document_context": context_text,
+        "document_context": context_documents,
         "chat_history": chat_history
     })
 
