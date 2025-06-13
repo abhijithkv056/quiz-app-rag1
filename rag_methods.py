@@ -40,7 +40,7 @@ LANGUAGE_MODEL = ChatOpenAI(api_key=openai_api_key)
 PROMPT_TEMPLATE = """
 You are chatbot that answer to Current Query. Always use the context to answer the Current Query
 
-Incase user has not provided the context document i.e no pdfs uploaded, respond back as "Please upload a documentfor me to get context"
+Incase context is blank or not provided, reply back with "Please upload a document first to create the knowledge base for Q&A"
 incase if the context cannot answer the Current Query properly, then reply back "I dont have the context to answer this question"
 
 Previous Conversation:{chat_history}
