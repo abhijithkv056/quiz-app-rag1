@@ -27,7 +27,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 # Constants
 DEFAULT_MODEL_SIZE = "medium"
 DEFAULT_CHUNK_LENGTH = 10
-STORAGE_PATH = 'docs/test_rag.pdf'
+STORAGE_PATH = ''
 openai.api_key = os.getenv("OPENAI_API_KEY")
 openai_api_key = os.getenv("OPENAI_API_KEY")
 
@@ -37,11 +37,14 @@ DOCUMENT_VECTOR_DB = InMemoryVectorStore(EMBEDDING_MODEL)
 LANGUAGE_MODEL = ChatOpenAI(api_key=openai_api_key)
 
 PROMPT_TEMPLATE = """
-You are chatbot that ansers to user querry
+You are chatbot that ansers to user query
+
+Incase user has not provided the context document i.e no pdfs uploaded, respond back as "Please upload a documentfor me to get context"
+incase if the context cannot answer the query properly, then reply back "I dont have the context to answer this question"
 
 Previous Conversation:{chat_history}
 Current Query: {user_query} 
-Restaurant Information: {document_context} 
+context: {document_context} 
 Answer:
 """
 
@@ -66,13 +69,7 @@ class ConversationHistory:
         return formatted
 
 def load_pdf_documents(uploaded_files=None):
-    """
-    Load PDF documents from either uploaded files or a default path
-    Args:
-        uploaded_files: List of uploaded files from Streamlit
-    Returns:
-        List of loaded documents
-    """
+
     documents = []
     
     if uploaded_files:
@@ -89,8 +86,7 @@ def load_pdf_documents(uploaded_files=None):
             os.remove(f"temp_{uploaded_file.name}")
     else:
         # Fallback to default path if no files uploaded
-        document_loader = PyPDFLoader(STORAGE_PATH)
-        documents = document_loader.load()
+        documents = "No pdfs uploaded"
     
     return documents
 

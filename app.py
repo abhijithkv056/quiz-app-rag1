@@ -19,14 +19,14 @@ os.environ["USER_AGENT"] = "MyFastAPIApp/1.0"
 dotenv.load_dotenv()
 
 st.set_page_config(
-    page_title="Simple RAG Chatbot", 
+    page_title="RAG Chatbot", 
     page_icon="🤖", 
     layout="centered", 
     initial_sidebar_state="expanded"
 )
 
 # --- Header ---
-st.title("Simple RAG Chatbot")
+st.title("RAG Chatbot")
 
 # --- Initial Setup ---
 if "session_id" not in st.session_state:
@@ -37,7 +37,7 @@ if "rag_sources" not in st.session_state:
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Hi! I'm your RAG-powered chatbot. Upload a PDF document and ask me questions about it!"}
+        {"role": "assistant", "content": "Hi! Upload a PDF document and ask me questions about it!"}
     ]
 
 if "conversation_history" not in st.session_state:
