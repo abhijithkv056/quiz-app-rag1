@@ -3,41 +3,30 @@ import os
 import dotenv
 import uuid
 
-
-from langchain_openai import ChatOpenAI, AzureChatOpenAI
-from langchain_anthropic import ChatAnthropic
+from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage, AIMessage
 
 from rag_methods import (
-    load_doc_to_db, 
-    load_url_to_db,
-    stream_llm_response,
-    stream_llm_rag_response,
+    load_pdf_documents,
+    chunk_documents,
+    index_documents,
+    find_related_documents,
+    ConversationHistory,
+    generate_answer
 )
+
 os.environ["USER_AGENT"] = "MyFastAPIApp/1.0"
 dotenv.load_dotenv()
 
-if "AZ_OPENAI_API_KEY" not in os.environ:
-    MODELS = [
-        "openai/o1-mini",
-        "openai/gpt-4o",
-        "openai/gpt-4o-mini"
-    ]
-else:
-    MODELS = ["azure-openai/gpt-4o"]
-
-
 st.set_page_config(
-    page_title="Quiz master RAG LLM app", 
-    page_icon="📚", 
+    page_title="Simple RAG Chatbot", 
+    page_icon="🤖", 
     layout="centered", 
     initial_sidebar_state="expanded"
 )
 
-
 # --- Header ---
-st.html("""<h2 style="text-align: center;">RAG project""")
-
+st.title("Simple RAG Chatbot")
 
 # --- Initial Setup ---
 if "session_id" not in st.session_state:
@@ -48,124 +37,72 @@ if "rag_sources" not in st.session_state:
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": " Upload a documents and type 'Quiz me' to start"}
-]
+        {"role": "assistant", "content": "Hi! I'm your RAG-powered chatbot. Upload a PDF document and ask me questions about it!"}
+    ]
 
+if "conversation_history" not in st.session_state:
+    st.session_state.conversation_history = ConversationHistory()
 
-# --- Side Bar LLM API Tokens ---
+# --- Side Bar ---
 with st.sidebar:
+    st.header("Document Upload")
     
-        default_openai_api_key = os.getenv("OPENAI_API_KEY") if os.getenv("OPENAI_API_KEY") is not None else ""  # only for development environment, otherwise it should return None
-        with st.popover("🔐 OpenAI"):
-            openai_api_key = st.text_input(
-                "Introduce your OpenAI API Key (https://platform.openai.com/)", 
-                value=default_openai_api_key, 
-                type="password",
-                key="openai_api_key",
-            )
+    # File upload input for RAG with documents
+    uploaded_files = st.file_uploader(
+        "📄 Upload a PDF document", 
+        type=["pdf"],
+        accept_multiple_files=True,
+        key="rag_docs",
+    )
 
+    # Process uploaded documents
+    if uploaded_files:
+        # Load and process documents
+        documents = load_pdf_documents(uploaded_files)
+        chunks = chunk_documents(documents)
+        index_documents(chunks)
+        
+        # Update sources list
+        st.session_state.rag_sources = [file.name for file in uploaded_files]
 
+    # Show uploaded documents
+    if st.session_state.rag_sources:
+        st.subheader("Uploaded Documents:")
+        for source in st.session_state.rag_sources:
+            st.write(f"- {source}")
 
-# --- Main Content ---
-# Checking if the user has introduced the OpenAI API Key, if not, a warning is displayed
-missing_openai = openai_api_key == "" or openai_api_key is None or "sk-" not in openai_api_key
+    st.button("Clear Chat", on_click=lambda: st.session_state.messages.clear(), type="primary")
 
-if missing_openai  and ("AZ_OPENAI_API_KEY" not in os.environ):
-    st.write("#")
-    st.warning("⬅️ Please introduce an API Key to continue...")
+# --- Main Chat Interface ---
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-else:
-    # Sidebar   
-    with st.sidebar:
-        st.divider()
-        models = []
-        for model in MODELS:
-            if "openai" in model and not missing_openai:
-                models.append(model)
+if prompt := st.chat_input("Ask a question about your document"):
+    # Add user message to chat
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
 
-
-        st.selectbox(
-            "🤖 Select a Model", 
-            options=models,
-            key="model",
-        )
-
-        cols0 = st.columns(2)
-        with cols0[0]:
-            is_vector_db_loaded = ("vector_db" in st.session_state and st.session_state.vector_db is not None)
-            st.toggle(
-                "Use RAG", 
-                value=is_vector_db_loaded, 
-                key="use_rag", 
-                disabled=not is_vector_db_loaded,
-            )
-
-        with cols0[1]:
-            st.button("Clear Chat", on_click=lambda: st.session_state.messages.clear(), type="primary")
-
-        st.header("RAG Sources:")
-            
-        # File upload input for RAG with documents
-        st.file_uploader(
-            "📄 Upload a PDF document", 
-            type=["pdf"],
-            accept_multiple_files=True,
-            on_change=load_doc_to_db,
-            key="rag_docs",
-        )
-
-
-
-        with st.expander(f"📚 Documents in DB ({0 if not is_vector_db_loaded else len(st.session_state.rag_sources)})"):
-            st.write([] if not is_vector_db_loaded else [source for source in st.session_state.rag_sources])
-
-    
-    # Main chat app
-    model_provider = st.session_state.model.split("/")[0]
-    if model_provider == "openai":
-        llm_stream = ChatOpenAI(
-            api_key=openai_api_key,
-            model_name=st.session_state.model.split("/")[-1],
-            temperature=0.3,
-            streaming=True,
-        )
-    elif model_provider == "anthropic":
-        llm_stream = ChatAnthropic(
-            api_key=anthropic_api_key,
-            model=st.session_state.model.split("/")[-1],
-            temperature=0.3,
-            streaming=True,
-        )
-    elif model_provider == "azure-openai":
-        llm_stream = AzureChatOpenAI(
-            azure_endpoint=os.getenv("AZ_OPENAI_ENDPOINT"),
-            openai_api_version="2024-02-15-preview",
-            model_name=st.session_state.model.split("/")[-1],
-            openai_api_key=os.getenv("AZ_OPENAI_API_KEY"),
-            openai_api_type="azure",
-            temperature=0.3,
-            streaming=True,
-        )
-
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    if prompt := st.chat_input("Your message"):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        with st.chat_message("assistant"):
-            message_placeholder = st.empty()
-            full_response = ""
-
-            messages = [HumanMessage(content=m["content"]) if m["role"] == "user" else AIMessage(content=m["content"]) for m in st.session_state.messages]
-
-            if not st.session_state.use_rag:
-                st.write_stream(stream_llm_response(llm_stream, messages))
-            else:
-                st.write_stream(stream_llm_rag_response(llm_stream, messages))
+    # Process the query
+    with st.chat_message("assistant"):
+        message_placeholder = st.empty()
+        
+        # Find relevant documents
+        context = find_related_documents(prompt)
+        
+        # Get chat history
+        chat_history = st.session_state.conversation_history.get_formatted_history()
+        
+        # Generate response
+        response = generate_answer(prompt, context, chat_history)
+        
+        # Update conversation history
+        st.session_state.conversation_history.add_exchange(prompt, response.content)
+        
+        # Add assistant response to chat
+        st.session_state.messages.append({"role": "assistant", "content": response.content})
+        st.markdown(response.content)
 
 
 

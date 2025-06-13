@@ -2,181 +2,120 @@ import os
 import dotenv
 from time import time
 import streamlit as st
+from io import BytesIO
 
-from langchain_community.document_loaders.text import TextLoader
-from langchain_community.document_loaders import (
-    WebBaseLoader, 
-    PyPDFLoader, 
-    Docx2txtLoader,
-)
-# pip install docx2txt, pypdf
-from langchain_community.vectorstores import Chroma
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_openai import OpenAIEmbeddings, AzureOpenAIEmbeddings
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_community.document_loaders import PyPDFLoader
+
+from langchain_openai import OpenAIEmbeddings
+from langchain_core.prompts import ChatPromptTemplate
+
 
 dotenv.load_dotenv()
-
 os.environ["USER_AGENT"] = "myagent"
-DB_DOCS_LIMIT = 10
-
-# Function to stream the response of the LLM 
-def stream_llm_response(llm_stream, messages):
-    response_message = ""
-
-    for chunk in llm_stream.stream(messages):
-        response_message += chunk.content
-        yield chunk
-
-    st.session_state.messages.append({"role": "assistant", "content": response_message})
 
 
-# --- Indexing Phase ---
+import openai
 
-def load_doc_to_db():
-    # Use loader according to doc type
-    if "rag_docs" in st.session_state and st.session_state.rag_docs:
-        docs = [] 
-        for doc_file in st.session_state.rag_docs:
-            if doc_file.name not in st.session_state.rag_sources:
-                if len(st.session_state.rag_sources) < DB_DOCS_LIMIT:
-                    os.makedirs("source_files", exist_ok=True)
-                    file_path = f"./source_files/{doc_file.name}"
-                    with open(file_path, "wb") as file:
-                        file.write(doc_file.read())
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.vectorstores import InMemoryVectorStore
 
-                    try:
-                        if doc_file.type == "application/pdf":
-                            loader = PyPDFLoader(file_path)
-                        elif doc_file.name.endswith(".docx"):
-                            loader = Docx2txtLoader(file_path)
-                        elif doc_file.type in ["text/plain", "text/markdown"]:
-                            loader = TextLoader(file_path)
-                        else:
-                            st.warning(f"Document type {doc_file.type} not supported.")
-                            continue
-
-                        docs.extend(loader.load())
-                        st.session_state.rag_sources.append(doc_file.name)
-
-                    except Exception as e:
-                        st.toast(f"Error loading document {doc_file.name}: {e}", icon="⚠️")
-                        print(f"Error loading document {doc_file.name}: {e}")
-                    
-                    finally:
-                        os.remove(file_path)
-
-                else:
-                    st.error(F"Maximum number of documents reached ({DB_DOCS_LIMIT}).")
-
-        if docs:
-            _split_and_load_docs(docs)
-            st.toast(f"Document *{str([doc_file.name for doc_file in st.session_state.rag_docs])[1:-1]}* loaded successfully.", icon="✅")
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
-def load_url_to_db():
-    if "rag_url" in st.session_state and st.session_state.rag_url:
-        url = st.session_state.rag_url
-        docs = []
-        if url not in st.session_state.rag_sources:
-            if len(st.session_state.rag_sources) < 10:
-                try:
-                    loader = WebBaseLoader(url)
-                    docs.extend(loader.load())
-                    st.session_state.rag_sources.append(url)
 
-                except Exception as e:
-                    st.error(f"Error loading document from {url}: {e}")
+# Constants
+DEFAULT_MODEL_SIZE = "medium"
+DEFAULT_CHUNK_LENGTH = 10
+STORAGE_PATH = 'docs/test_rag.pdf'
+openai.api_key = os.getenv("OPENAI_API_KEY")
+openai_api_key = os.getenv("OPENAI_API_KEY")
 
-                if docs:
-                    _split_and_load_docs(docs)
-                    st.toast(f"Document from URL *{url}* loaded successfully.", icon="✅")
+# Initialize OpenAI models with API key from Streamlit secrets
+EMBEDDING_MODEL = OpenAIEmbeddings(api_key=openai_api_key)
+DOCUMENT_VECTOR_DB = InMemoryVectorStore(EMBEDDING_MODEL)
+LANGUAGE_MODEL = ChatOpenAI(api_key=openai_api_key)
 
-            else:
-                st.error("Maximum number of documents reached (10).")
+PROMPT_TEMPLATE = """
+You are chatbot that ansers to user querry
 
+Previous Conversation:{chat_history}
+Current Query: {user_query} 
+Restaurant Information: {document_context} 
+Answer:
+"""
 
-def initialize_vector_db(docs):
-    if "AZ_OPENAI_API_KEY" not in os.environ:
-        embedding = OpenAIEmbeddings(api_key=st.session_state.openai_api_key)
+class ConversationHistory:
+    def __init__(self, max_history=5):
+        self.history = []
+        self.max_history = max_history
+    
+    def add_exchange(self, user_input, assistant_response):
+        self.history.append({
+            "user": user_input,
+            "assistant": assistant_response
+        })
+        if len(self.history) > self.max_history:
+            self.history = self.history[-self.max_history:]
+    
+    def get_formatted_history(self):
+        formatted = ""
+        for exchange in self.history:
+            formatted += f"Customer: {exchange['user']}\n"
+            formatted += f"Assistant: {exchange['assistant']}\n"
+        return formatted
+
+def load_pdf_documents(uploaded_files=None):
+    """
+    Load PDF documents from either uploaded files or a default path
+    Args:
+        uploaded_files: List of uploaded files from Streamlit
+    Returns:
+        List of loaded documents
+    """
+    documents = []
+    
+    if uploaded_files:
+        for uploaded_file in uploaded_files:
+            # Convert uploaded file to BytesIO
+            pdf_file = BytesIO(uploaded_file.getvalue())
+            # Create a temporary file to store the PDF
+            with open(f"temp_{uploaded_file.name}", "wb") as f:
+                f.write(pdf_file.getvalue())
+            # Load the document
+            document_loader = PyPDFLoader(f"temp_{uploaded_file.name}")
+            documents.extend(document_loader.load())
+            # Clean up temporary file
+            os.remove(f"temp_{uploaded_file.name}")
     else:
-        embedding = AzureOpenAIEmbeddings(
-            api_key=os.getenv("AZ_OPENAI_API_KEY"), 
-            azure_endpoint=os.getenv("AZ_OPENAI_ENDPOINT"),
-            model="text-embedding-3-large",
-            openai_api_version="2024-02-15-preview",
-        )
+        # Fallback to default path if no files uploaded
+        document_loader = PyPDFLoader(STORAGE_PATH)
+        documents = document_loader.load()
+    
+    return documents
 
-    vector_db = Chroma.from_documents(
-        documents=docs,
-        embedding=embedding,
-        collection_name=f"{str(time()).replace('.', '')[:14]}_" + st.session_state['session_id'],
+def chunk_documents(raw_documents):
+    text_processor = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=200,
+        add_start_index=True
     )
+    return text_processor.split_documents(raw_documents)
 
-    # We need to manage the number of collections that we have in memory, we will keep the last 20
-    chroma_client = vector_db._client
-    collection_names = sorted([collection.name for collection in chroma_client.list_collections()])
-    print("Number of collections:", len(collection_names))
-    while len(collection_names) > 20:
-        chroma_client.delete_collection(collection_names[0])
-        collection_names.pop(0)
+def index_documents(document_chunks):
+    DOCUMENT_VECTOR_DB.add_documents(document_chunks)
 
-    return vector_db
+def find_related_documents(query):
+    return DOCUMENT_VECTOR_DB.similarity_search(query)
 
-
-def _split_and_load_docs(docs):
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=5000,
-        chunk_overlap=1000,
-    )
-
-    document_chunks = text_splitter.split_documents(docs)
-
-    if "vector_db" not in st.session_state:
-        st.session_state.vector_db = initialize_vector_db(docs)
-    else:
-        st.session_state.vector_db.add_documents(document_chunks)
+def generate_answer(user_query, context_documents, chat_history):
+    context_text = "\n\n".join([doc.page_content for doc in context_documents])
+    conversation_prompt = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
+    response_chain = conversation_prompt | LANGUAGE_MODEL
+    return response_chain.invoke({
+        "user_query": user_query, 
+        "document_context": context_text,
+        "chat_history": chat_history
+    })
 
 
-# --- Retrieval Augmented Generation (RAG) Phase ---
-
-def _get_context_retriever_chain(vector_db, llm):
-    retriever = vector_db.as_retriever()
-    prompt = ChatPromptTemplate.from_messages([
-        MessagesPlaceholder(variable_name="messages"),
-        ("user", "{input}"),
-        ("user", "Given the option/input chosen by the user, mention if the option is correct or not. Inboth cases, give an explianation focussing on most recent question. if user asked to quiz him, then provide the question as per prompt template"),
-    ])
-    retriever_chain = create_history_aware_retriever(llm, retriever, prompt)
-
-    return retriever_chain
-
-
-def get_conversational_rag_chain(llm):
-    retriever_chain = _get_context_retriever_chain(st.session_state.vector_db, llm)
-
-    prompt = ChatPromptTemplate.from_messages([
-        ("system",
-        """You are a quiz master that ask questions to user. you will ask user a question and give 4 options. only one opion will be correct.make sure all 4 options are shown in 4 lines
-        You will have some context to help with your asking the questions and deciding the correct option, but now always would be completely related or helpful.
-        Only use the context provided to provide response. do not hallucinate. if you dont have the context, just say so.
-        Also at the end. ask the user if he wants to get the next question. if user says "yes", then given next question\n
-        {context}"""),
-        MessagesPlaceholder(variable_name="messages"),
-        ("user", "{input}"),
-    ])
-    stuff_documents_chain = create_stuff_documents_chain(llm, prompt)
-
-    return create_retrieval_chain(retriever_chain, stuff_documents_chain)
-
-
-def stream_llm_rag_response(llm_stream, messages):
-    conversation_rag_chain = get_conversational_rag_chain(llm_stream)
-    response_message = "*(RAG Response)*\n"
-    for chunk in conversation_rag_chain.pick("answer").stream({"messages": messages[:-1], "input": messages[-1].content}):
-        response_message += chunk
-        yield chunk
-
-    st.session_state.messages.append({"role": "assistant", "content": response_message})
