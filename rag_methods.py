@@ -38,10 +38,10 @@ DOCUMENT_VECTOR_DB = InMemoryVectorStore(EMBEDDING_MODEL)
 LANGUAGE_MODEL = ChatOpenAI(api_key=openai_api_key)
 
 PROMPT_TEMPLATE = """
-You are chatbot that ansers to user query
+You are chatbot that answer to Current Query. Always use the context to answer the Current Query
 
 Incase user has not provided the context document i.e no pdfs uploaded, respond back as "Please upload a documentfor me to get context"
-incase if the context cannot answer the query properly, then reply back "I dont have the context to answer this question"
+incase if the context cannot answer the Current Query properly, then reply back "I dont have the context to answer this question"
 
 Previous Conversation:{chat_history}
 Current Query: {user_query} 
