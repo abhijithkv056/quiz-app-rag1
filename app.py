@@ -2,14 +2,7 @@ import streamlit as st
 import os
 import dotenv
 import uuid
-#import os
-#os.system("pip install -r requirements.txt")
 
-# check if it's linux so it works on Streamlit Cloud
-if os.name == 'posix':
-    __import__('pysqlite3')
-    import sys
-    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
 from langchain_anthropic import ChatAnthropic
@@ -26,10 +19,9 @@ dotenv.load_dotenv()
 
 if "AZ_OPENAI_API_KEY" not in os.environ:
     MODELS = [
-        # "openai/o1-mini",
+        "openai/o1-mini",
         "openai/gpt-4o",
-        "openai/gpt-4o-mini",
-        "anthropic/claude-3-5-sonnet-20240620",
+        "openai/gpt-4o-mini"
     ]
 else:
     MODELS = ["azure-openai/gpt-4o"]
@@ -62,7 +54,7 @@ if "messages" not in st.session_state:
 
 # --- Side Bar LLM API Tokens ---
 with st.sidebar:
-    if "AZ_OPENAI_API_KEY" not in os.environ:
+    
         default_openai_api_key = os.getenv("OPENAI_API_KEY") if os.getenv("OPENAI_API_KEY") is not None else ""  # only for development environment, otherwise it should return None
         with st.popover("🔐 OpenAI"):
             openai_api_key = st.text_input(
@@ -72,41 +64,25 @@ with st.sidebar:
                 key="openai_api_key",
             )
 
-        default_anthropic_api_key = os.getenv("ANTHROPIC_API_KEY") if os.getenv("ANTHROPIC_API_KEY") is not None else ""
-        with st.popover("🔐 Anthropic"):
-            anthropic_api_key = st.text_input(
-                "Introduce your Anthropic API Key (https://console.anthropic.com/)", 
-                value=default_anthropic_api_key, 
-                type="password",
-                key="anthropic_api_key",
-            )
-    else:
-        openai_api_key, anthropic_api_key = None, None
-        st.session_state.openai_api_key = None
-        az_openai_api_key = os.getenv("AZ_OPENAI_API_KEY")
-        st.session_state.az_openai_api_key = az_openai_api_key
 
 
 # --- Main Content ---
 # Checking if the user has introduced the OpenAI API Key, if not, a warning is displayed
 missing_openai = openai_api_key == "" or openai_api_key is None or "sk-" not in openai_api_key
-missing_anthropic = anthropic_api_key == "" or anthropic_api_key is None
-if missing_openai and missing_anthropic and ("AZ_OPENAI_API_KEY" not in os.environ):
+
+if missing_openai  and ("AZ_OPENAI_API_KEY" not in os.environ):
     st.write("#")
     st.warning("⬅️ Please introduce an API Key to continue...")
 
 else:
-    # Sidebar
+    # Sidebar   
     with st.sidebar:
         st.divider()
         models = []
         for model in MODELS:
             if "openai" in model and not missing_openai:
                 models.append(model)
-            elif "anthropic" in model and not missing_anthropic:
-                models.append(model)
-            elif "azure-openai" in model:
-                models.append(model)
+
 
         st.selectbox(
             "🤖 Select a Model", 
@@ -131,20 +107,14 @@ else:
             
         # File upload input for RAG with documents
         st.file_uploader(
-            "📄 Upload a document", 
-            type=["pdf", "txt", "docx", "md"],
+            "📄 Upload a PDF document", 
+            type=["pdf"],
             accept_multiple_files=True,
             on_change=load_doc_to_db,
             key="rag_docs",
         )
 
-        # URL input for RAG with websites
-        st.text_input(
-            "🌐 Introduce a URL", 
-            placeholder="https://example.com",
-            on_change=load_url_to_db,
-            key="rag_url",
-        )
+
 
         with st.expander(f"📚 Documents in DB ({0 if not is_vector_db_loaded else len(st.session_state.rag_sources)})"):
             st.write([] if not is_vector_db_loaded else [source for source in st.session_state.rag_sources])
