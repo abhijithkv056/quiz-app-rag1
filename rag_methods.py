@@ -5,36 +5,29 @@ import streamlit as st
 from io import BytesIO
 
 from langchain_community.document_loaders import PyPDFLoader
-
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
-
+from langchain_community.vectorstores import FAISS
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 os.environ["USER_AGENT"] = "MyFastAPIApp/1.0"
 dotenv.load_dotenv()
 os.environ["USER_AGENT"] = "myagent"
 
-
 import openai
-
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.vectorstores import InMemoryVectorStore
-
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-
-
 
 # Constants
 DEFAULT_MODEL_SIZE = "medium"
 DEFAULT_CHUNK_LENGTH = 10
-STORAGE_PATH = ''
+STORAGE_PATH = 'faiss_index'
 openai.api_key = os.getenv("OPENAI_API_KEY")
 openai_api_key = os.getenv("OPENAI_API_KEY")
 
 # Initialize OpenAI models with API key from Streamlit secrets
 EMBEDDING_MODEL = OpenAIEmbeddings(api_key=openai_api_key)
-DOCUMENT_VECTOR_DB = InMemoryVectorStore(EMBEDDING_MODEL)
+DOCUMENT_VECTOR_DB = None  # Will be initialized when documents are added
 LANGUAGE_MODEL = ChatOpenAI(api_key=openai_api_key)
 
 PROMPT_TEMPLATE = """
@@ -100,9 +93,27 @@ def chunk_documents(raw_documents):
     return text_processor.split_documents(raw_documents)
 
 def index_documents(document_chunks):
-    DOCUMENT_VECTOR_DB.add_documents(document_chunks)
+    global DOCUMENT_VECTOR_DB
+    if DOCUMENT_VECTOR_DB is None:
+        DOCUMENT_VECTOR_DB = FAISS.from_documents(document_chunks, EMBEDDING_MODEL)
+    else:
+        DOCUMENT_VECTOR_DB.add_documents(document_chunks)
+    
+    # Save the FAISS index
+    if not os.path.exists(STORAGE_PATH):
+        os.makedirs(STORAGE_PATH)
+    DOCUMENT_VECTOR_DB.save_local(STORAGE_PATH)
+
+def load_existing_index():
+    global DOCUMENT_VECTOR_DB
+    if os.path.exists(STORAGE_PATH):
+        DOCUMENT_VECTOR_DB = FAISS.load_local(STORAGE_PATH, EMBEDDING_MODEL)
+        return True
+    return False
 
 def find_related_documents(query):
+    if DOCUMENT_VECTOR_DB is None:
+        return []
     return DOCUMENT_VECTOR_DB.similarity_search(query)
 
 def generate_answer(user_query, context_documents, chat_history):
